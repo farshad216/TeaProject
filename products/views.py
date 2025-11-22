@@ -6,13 +6,23 @@ from .models import Product, Category, HomePage, OrderInquiry
 
 def home(request):
     """Home page view with editable content"""
-    homepage = HomePage.objects.filter(is_active=True).first()
+    # Handle case where migrations haven't run yet
+    try:
+        homepage = HomePage.objects.filter(is_active=True).first()
+    except Exception:
+        homepage = None
     
     # Get featured products (best sellers or newest) - show all products if none in stock
-    featured_products = Product.objects.all().order_by('-review_count', '-rating', '-created_at')[:8]
+    try:
+        featured_products = Product.objects.all().order_by('-review_count', '-rating', '-created_at')[:8]
+    except Exception:
+        featured_products = []
     
     # Get all categories
-    categories = Category.objects.all()[:6]
+    try:
+        categories = Category.objects.all()[:6]
+    except Exception:
+        categories = []
     
     context = {
         'homepage': homepage,
@@ -152,4 +162,3 @@ def contact(request):
     }
 
     return render(request, "contact.html", context)
-

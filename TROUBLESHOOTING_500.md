@@ -76,7 +76,7 @@
 #### Procfile should contain:
 ```
 release: python manage.py migrate --noinput && python manage.py collectstatic --noinput --clear && python manage.py create_superuser_if_none
-web: gunicorn ecommerce_project.wsgi --log-file -
+web: gunicorn ecommerce_project.wsgi:application --bind 0.0.0.0:$PORT
 ```
 
 #### Start Command in Render should be:
@@ -120,4 +120,3 @@ python manage.py runserver
 1. Set `DEBUG=False` in environment variables
 2. Redeploy your service
 3. Test your site
-
