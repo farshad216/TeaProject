@@ -13,11 +13,6 @@ class Command(BaseCommand):
     help = 'Creates a superuser if one does not exist. Uses environment variables for credentials.'
 
     def handle(self, *args, **options):
-        # Check if any superuser exists
-        if User.objects.filter(is_superuser=True).exists():
-            self.stdout.write(self.style.SUCCESS('Superuser already exists. Skipping creation.'))
-            return
-
         # Get credentials from environment variables
         username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
         email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
@@ -32,19 +27,58 @@ class Command(BaseCommand):
             )
             return
 
+        # Check if a superuser already exists
+        if User.objects.filter(is_superuser=True).exists():
+            self.stdout.write(self.style.SUCCESS('Superuser already exists. Skipping creation.'))
+            return
+
+        # Check if a user with this username already exists
         try:
-            User.objects.create_superuser(
+            existing_user = User.objects.get(username=username)
+            # If user exists but is not a superuser, upgrade them
+            if not existing_user.is_superuser:
+                existing_user.is_superuser = True
+                existing_user.is_staff = True
+                existing_user.set_password(password)
+                if email:
+                    existing_user.email = email
+                existing_user.save()
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Successfully upgraded existing user to superuser: {username}'
+                    )
+                )
+            else:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'User {username} already exists and is a superuser.'
+                    )
+                )
+            return
+        except User.DoesNotExist:
+            # User doesn't exist, create new one
+            pass
+
+        # Create new superuser
+        try:
+            user = User.objects.create_superuser(
                 username=username,
                 email=email,
                 password=password
             )
+            # Explicitly ensure is_staff is True (should be automatic, but being safe)
+            user.is_staff = True
+            user.is_superuser = True
+            user.save()
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Successfully created superuser: {username}'
+                    f'Successfully created superuser: {username} (is_staff={user.is_staff}, is_superuser={user.is_superuser})'
                 )
             )
         except Exception as e:
             self.stdout.write(
                 self.style.ERROR(f'Error creating superuser: {str(e)}')
             )
+            import traceback
+            self.stdout.write(self.style.ERROR(traceback.format_exc()))
 
